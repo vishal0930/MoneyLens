@@ -125,48 +125,50 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
             />
 
             {/* Email + Frequency */}
-            <div className="relative space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <FormControl>
-                        <Input disabled {...field} className="flex-1" />
-                      </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-6 relative">
+              <div className={cn("relative", !form.watch("isEnabled") && "opacity-50")}>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <FormControl>
+                          <Input disabled {...field} className="flex-1" />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="frequency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Repeat On</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled>
-                      <FormControl className="w-full">
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select frequency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="MONTHLY">Monthly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {!form.watch("isEnabled") && (
-                <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-10" />
-              )}
+                <FormField
+                  control={form.control}
+                  name="frequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Repeat On</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled
+                      >
+                        <FormControl className="w-full">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             {/* Manual Report Section */}
@@ -183,6 +185,7 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
@@ -193,8 +196,12 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
                         {fromDate ? format(fromDate, "MMMM do, yyyy") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={fromDate} onSelect={setFromDate} initialFocus />
+                    <PopoverContent className="w-auto p-0 z-[9999]">
+                      <Calendar
+                        mode="single"
+                        selected={fromDate}
+                        onSelect={setFromDate}
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -205,6 +212,7 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
@@ -215,50 +223,56 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
                         {toDate ? format(toDate, "MMMM do, yyyy") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 z-[9999]">
                       <Calendar
                         mode="single"
                         selected={toDate}
                         onSelect={setToDate}
-                        
-                  disabled={(date) => !!fromDate && date < fromDate}
-                  initialFocus
+                        disabled={(date) => fromDate && date < fromDate}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
               </div>
 
-              {/* Send Report Button */}
-              <Button
-                type="button"
-                onClick={async () => {
-                  if (!fromDate || !toDate) {
-                    toast.error("Please select both start and end dates.");
-                    return;
-                  }
+             {/* Send Report Button */}
+<Button
+  type="button"
+  onClick={async () => {
+    if (!fromDate || !toDate) {
+      toast.error("Please select both start and end dates.");
+      return;
+    }
 
-                  try {
-                    const res = await generateReport({
-                       from: format(fromDate, "yyyy-MM-dd"),
-                       to: format(toDate, "yyyy-MM-dd"),
-                    }).unwrap();
-                    toast.success(res.message || "Report sent successfully!");
-                  } catch {
-                    toast.error("Failed to send report. Please try again.");
-                  }
-                }}
-                disabled={isSending}
-                className="w-full text-white"
-              >
-                {isSending ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin mr-2" /> Sending...
-                  </>
-                ) : (
-                  "Send Report Email"
-                )}
-              </Button>
+    // ✅ Fix timezone issue (send correct IST/local date instead of UTC)
+    const formatLocalDate = (date: Date) => {
+      const tzOffset = date.getTimezoneOffset() * 60000; // offset in ms
+      return new Date(date.getTime() - tzOffset).toISOString().split("T")[0];
+    };
+
+    try {
+      const res = await generateReport({
+        from: formatLocalDate(fromDate),
+        to: formatLocalDate(toDate),
+      }).unwrap();
+
+      toast.success(res.message || "Report sent successfully!");
+    } catch {
+      toast.error("Failed to send report. Please try again.");
+    }
+  }}
+  disabled={isSending}
+  className="w-full text-white"
+>
+  {isSending ? (
+    <>
+      <Loader className="h-4 w-4 animate-spin mr-2" /> Sending...
+    </>
+  ) : (
+    "Send Report Email"
+  )}
+</Button>
+
             </div>
 
             {/* Summary */}

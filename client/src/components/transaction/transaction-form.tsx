@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { useEffect, useState } from "react";
-import { Calendar, Loader } from "lucide-react";
+import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import RecieptScanner from "./reciept-scanner";
 import {
   _TRANSACTION_FREQUENCY,
@@ -41,8 +34,18 @@ import { Switch } from "../ui/switch";
 import CurrencyInputField from "../ui/currency-input";
 import { SingleSelector } from "../ui/single-select";
 import { AIScanReceiptData } from "@/features/transaction/transationType";
-import { useCreateTransactionMutation, useGetSingleTransactionQuery, useUpdateTransactionMutation } from "@/features/transaction/transactionAPI";
+import {
+  useCreateTransactionMutation,
+  useGetSingleTransactionQuery,
+  useUpdateTransactionMutation,
+} from "@/features/transaction/transactionAPI";
 import { toast } from "sonner";
+import { Loader, Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+
+
 
 const formSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters." }),
@@ -54,9 +57,7 @@ const formSchema = z.object({
   date: z.date({
     required_error: "Please select a date.",
   }),
-  paymentMethod: z
-    .string()
-    .min(1, { message: "Please select a payment method." }),
+  paymentMethod: z.string().min(1, { message: "Please select a payment method." }),
   isRecurring: z.boolean(),
   frequency: z
     .enum([
@@ -73,26 +74,26 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const TransactionForm = (props: { 
-  isEdit?: boolean; 
-  transactionId?: string
+const TransactionForm = ({
+  isEdit = false,
+  transactionId,
+  onCloseDrawer,
+}: {
+  isEdit?: boolean;
+  transactionId?: string;
   onCloseDrawer?: () => void;
- }) => {
-  const {onCloseDrawer, isEdit = false, transactionId } = props;
-
+}) => {
   const [isScanning, setIsScanning] = useState(false);
 
-   const {data, isLoading } = useGetSingleTransactionQuery(
-    transactionId || "",{skip: !transactionId}
-   );
-   const editData = data?.transaction;
+  const { data, isLoading } = useGetSingleTransactionQuery(transactionId || "", {
+    skip: !transactionId,
+  });
+  const editData = data?.transaction;
 
   const [createTransaction, { isLoading: isCreating }] =
-  useCreateTransactionMutation();
-
-   const [updateTransaction, { isLoading: isUpdating }] =
-     useUpdateTransactionMutation();
-
+    useCreateTransactionMutation();
+  const [updateTransaction, { isLoading: isUpdating }] =
+    useUpdateTransactionMutation();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -107,34 +108,29 @@ const TransactionForm = (props: {
       frequency: null,
       description: "",
       receiptUrl: "",
-
     },
   });
 
   useEffect(() => {
     if (isEdit && transactionId && editData) {
-
       form.reset({
-        title: editData?.title,
+        title: editData.title,
         amount: editData.amount.toString(),
         type: editData.type,
-        category: editData.category?.toLocaleLowerCase(),
+        category: editData.category?.toLowerCase(),
         date: new Date(editData.date),
         paymentMethod: editData.paymentMethod,
         isRecurring: editData.isRecurring,
         frequency: editData.recurringInterval,
         description: editData.description,
-      })
+      });
     }
-  }, [editData,form, isEdit, transactionId]);
+  }, [editData, form, isEdit, transactionId]);
 
-  const frequencyOptions = Object.entries(_TRANSACTION_FREQUENCY).map(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ([_, value]) => ({
-      value: value,
-      label: value.replace("_", " ").toLowerCase(),
-    })
-  );
+  const frequencyOptions = Object.entries(_TRANSACTION_FREQUENCY).map(([_, value]) => ({
+    value,
+    label: value.replace("_", " ").toLowerCase(),
+  }));
 
   const handleScanComplete = (data: AIScanReceiptData) => {
     form.reset({
@@ -149,12 +145,10 @@ const TransactionForm = (props: {
       frequency: null,
       description: data.description || "",
       receiptUrl: data.receiptUrl || "",
-    })
+    });
   };
-  // Handle form submission
+
   const onSubmit = (values: FormValues) => {
-    // if (isCreating || isUpdating) return;
-    console.log("Form submitted:", values);
     const payload = {
       title: values.title,
       type: values.type,
@@ -162,35 +156,34 @@ const TransactionForm = (props: {
       paymentMethod: values.paymentMethod,
       description: values.description || "",
       amount: Number(values.amount),
-      date: values.date.toISOString(),
+      date: format(values.date, "yyyy-MM-dd"),
       isRecurring: values.isRecurring || false,
       recurringInterval: values.frequency || null,
     };
+
     if (isEdit && transactionId) {
-      console.log("Edit transaction:", payload);
-      onCloseDrawer?.();
-       updateTransaction({id: transactionId, transaction: payload})
-       .unwrap()
-       .then(() => {
-         onCloseDrawer?.();
-         toast.success("Transaction updated successfully");
-       })
-       .catch((error) => {
-         toast.error(error.data.message || "Failed to update transaction");
-       });
+      updateTransaction({ id: transactionId, transaction: payload })
+        .unwrap()
+        .then(() => {
+          onCloseDrawer?.();
+          toast.success("Transaction updated successfully");
+        })
+        .catch((error) => {
+          toast.error(error.data.message || "Failed to update transaction");
+        });
       return;
     }
-     createTransaction(payload)
-     .unwrap()
+
+    createTransaction(payload)
+      .unwrap()
       .then(() => {
         form.reset();
         onCloseDrawer?.();
         toast.success("Transaction created successfully");
-         })
-       .catch((error) => {
-         toast.error(error.data.message || "Failed to create transaction");
-       });
-    
+      })
+      .catch((error) => {
+        toast.error(error.data.message || "Failed to create transaction");
+      });
   };
 
   return (
@@ -198,10 +191,9 @@ const TransactionForm = (props: {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-4">
           <div className="space-y-6">
-            {/* Receipt Upload Section */}
             {!isEdit && (
               <RecieptScanner
-              loadingChange={isScanning}
+                loadingChange={isScanning}
                 onScanComplete={handleScanComplete}
                 onLoadingChange={setIsScanning}
               />
@@ -223,12 +215,8 @@ const TransactionForm = (props: {
                     <label
                       htmlFor={_TRANSACTION_TYPE.INCOME}
                       className={cn(
-                        `text-sm font-normal leading-none cursor-pointer
-                        flex items-center space-x-2 rounded-md 
-                        shadow-sm border p-2 flex-1 justify-center 
-                        `,
-                        field.value === _TRANSACTION_TYPE.INCOME &&
-                          "!border-primary"
+                        "flex flex-1 items-center justify-center rounded-md border p-2 text-sm shadow-sm cursor-pointer",
+                        field.value === _TRANSACTION_TYPE.INCOME && "!border-primary"
                       )}
                     >
                       <RadioGroupItem
@@ -242,12 +230,8 @@ const TransactionForm = (props: {
                     <label
                       htmlFor={_TRANSACTION_TYPE.EXPENSE}
                       className={cn(
-                        `text-sm font-normal leading-none cursor-pointer
-                        flex items-center space-x-2 rounded-md 
-                        shadow-sm border p-2 flex-1 justify-center 
-                        `,
-                        field.value === _TRANSACTION_TYPE.EXPENSE &&
-                          "!border-primary"
+                        "flex flex-1 items-center justify-center rounded-md border p-2 text-sm shadow-sm cursor-pointer",
+                        field.value === _TRANSACTION_TYPE.EXPENSE && "!border-primary"
                       )}
                     >
                       <RadioGroupItem
@@ -269,13 +253,9 @@ const TransactionForm = (props: {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="!font-normal">Title</FormLabel>
+                  <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Transaction title"
-                      {...field}
-                      disabled={isScanning}
-                    />
+                    <Input placeholder="Transaction title" {...field} disabled={isScanning} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -313,8 +293,10 @@ const TransactionForm = (props: {
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                   <SingleSelector
-                    value={CATEGORIES.find((opt) => opt.value === field.value) || field.value ? {value: field.value, label: field.value} : undefined}
-                    
+                    value={
+                      CATEGORIES.find((opt) => opt.value === field.value) ||
+                      (field.value ? { value: field.value, label: field.value } : undefined)
+                    }
                     onChange={(option) => field.onChange(option.value)}
                     options={CATEGORIES}
                     placeholder="Select or type a category"
@@ -326,51 +308,52 @@ const TransactionForm = (props: {
               )}
             />
 
-            {/* Date */}
+            {/* ✅ Calendar Date Picker (Dialog-based) */}
             <FormField
               control={form.control}
               name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Date</FormLabel>
-                  <Popover modal={false}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 !pointer-events-auto" 
-                    align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={field.value}
-                        onSelect={(date) => {
-                          console.log(date)
-                          field.onChange(date); // This updates the form value
-                        }}
-                        disabled={(date) => date < new Date("2023-01-01")}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const [open, setOpen] = useState(false);
+
+                return (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-between"
+                          >
+                            {field.value
+                              ? format(field.value, "PPP")
+                              : "Pick a date"}
+                            <CalendarIcon className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="p-2 w-auto bg-background rounded-md shadow-lg">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => {
+                              if (date) {
+                                field.onChange(date);
+                                setOpen(false);
+                              }
+                            }}
+                            disabled={(date) => date < new Date("2023-01-01")}
+                            initialFocus
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
-            
 
             {/* Payment Method */}
             <FormField
@@ -402,15 +385,14 @@ const TransactionForm = (props: {
               )}
             />
 
+            {/* Recurring Transaction Switch */}
             <FormField
               control={form.control}
               name="isRecurring"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-[14.5px]">
-                      Recurring Transaction
-                    </FormLabel>
+                    <FormLabel>Recurring Transaction</FormLabel>
                     <p className="text-xs text-muted-foreground">
                       {field.value
                         ? "This will repeat automatically"
@@ -421,15 +403,11 @@ const TransactionForm = (props: {
                     <Switch
                       disabled={isScanning}
                       checked={field.value}
-                      className="cursor-pointer"
                       onCheckedChange={(checked) => {
                         field.onChange(checked);
                         if (checked) {
-                          form.setValue(
-                            "frequency",
-                            _TRANSACTION_FREQUENCY.DAILY
-                          );
-                        }else{
+                          form.setValue("frequency", _TRANSACTION_FREQUENCY.DAILY);
+                        } else {
                           form.setValue("frequency", null);
                         }
                       }}
@@ -439,12 +417,13 @@ const TransactionForm = (props: {
               )}
             />
 
-            {form.watch("isRecurring") && form.getValues().isRecurring && (
+            {/* Frequency */}
+            {form.watch("isRecurring") && (
               <FormField
                 control={form.control}
                 name="frequency"
                 render={({ field }) => (
-                  <FormItem className="recurring-control">
+                  <FormItem>
                     <FormLabel>Frequency</FormLabel>
                     <Select
                       onValueChange={field.onChange}
@@ -453,19 +432,12 @@ const TransactionForm = (props: {
                     >
                       <FormControl className="w-full">
                         <SelectTrigger>
-                          <SelectValue
-                            placeholder="Select frequency"
-                            className="!capitalize"
-                          />
+                          <SelectValue placeholder="Select frequency" className="!capitalize" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {frequencyOptions.map(({ value, label }) => (
-                          <SelectItem
-                            key={value}
-                            value={value}
-                            className="!capitalize"
-                          >
+                          <SelectItem key={value} value={value} className="!capitalize">
                             {label}
                           </SelectItem>
                         ))}
@@ -476,6 +448,7 @@ const TransactionForm = (props: {
                 )}
               />
             )}
+
             {/* Description */}
             <FormField
               control={form.control}
@@ -497,25 +470,26 @@ const TransactionForm = (props: {
             />
           </div>
 
-              <div className="sticky bottom-0 bg-white dark:bg-background pb-2">
+          {/* Submit Button */}
+          <div className="sticky bottom-0 bg-white dark:bg-background pb-2">
             <Button
               type="submit"
               className="w-full !text-white"
               disabled={isScanning || isCreating || isUpdating}
             >
               {isCreating || isUpdating ? (
-                <Loader className="h-4 w-4 animate-spin" />
+                <Loader className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               {isEdit ? "Update" : "Save"}
             </Button>
           </div>
 
-
-        {isLoading && (
-          <div className="absolute top-0 left-0 right-0 bottom-0 bg bg-white/70 dark:bg-background/70 z-50 flex justify-center">
-            <Loader className="h-8 w-8 animate-spin"/>
-          </div>
-        )}
+          {/* Loading Overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/70 dark:bg-background/70 z-50 flex justify-center items-center">
+              <Loader className="h-8 w-8 animate-spin" />
+            </div>
+          )}
         </form>
       </Form>
     </div>
