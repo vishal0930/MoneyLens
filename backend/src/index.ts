@@ -32,10 +32,14 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   cors({
-    origin: Env.FRONTEND_ORIGIN,
+    origin: [
+      Env.FRONTEND_ORIGIN,              // your .env variable (e.g. localhost)
+      "https://money-lens-phi.vercel.app", // your Vercel deployment
+    ],
     credentials: true,
   })
 );
+
 app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/user`, passportAuthenticateJwt, userRoutes);
 app.use(`${BASE_PATH}/transaction`, passportAuthenticateJwt, transactionRoutes);
