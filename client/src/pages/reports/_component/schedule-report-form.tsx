@@ -228,7 +228,8 @@ const ScheduleReportForm = ({ onCloseDrawer }: { onCloseDrawer: () => void }) =>
                         mode="single"
                         selected={toDate}
                         onSelect={setToDate}
-                        disabled={(date) => fromDate && date < fromDate}
+                       disabled={(date) => !!fromDate && date < fromDate}
+
                       />
                     </PopoverContent>
                   </Popover>
