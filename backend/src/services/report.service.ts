@@ -187,13 +187,12 @@ export const generateReportService = async (
   const availableBalance = totalIncome - totalExpenses;
   const savingsRate = calculateSavingRate(totalIncome, totalExpenses);
 
- // ✅ Smart date range label
+// ✅ Smart date range label
+const istTimeZone = "Asia/Kolkata";
 
- const istTimeZone = "Asia/Kolkata";
-
-  // ✅ Convert UTC dates to IST before formatting
-  const fromIST = toZonedTime(fromDate, istTimeZone);
-  const toIST = toZonedTime(toDate, istTimeZone);
+// ✅ Convert UTC dates to IST before formatting
+const fromIST = toZonedTime(fromDate, istTimeZone);
+const toIST = toZonedTime(toDate, istTimeZone);
 
 // ✅ Smart date range formatting
 const sameMonth = formatTz(fromIST, "MMMM") === formatTz(toIST, "MMMM");
@@ -201,12 +200,13 @@ const periodLabel = sameMonth
   ? `${formatTz(fromIST, "MMMM d")} – ${formatTz(toIST, "d, yyyy")}`
   : `${formatTz(fromIST, "MMMM d")} – ${formatTz(toIST, "MMMM d, yyyy")}`;
 
- /* let periodLabel = "";
+
+ /*let periodLabel = "";
   if (isSameMonth(fromDate, toDate)) {
     periodLabel = `${format(fromDate, "MMMM d")} - ${format(toDate, "d, yyyy")}`;
   } else {
-    periodLabel = `${format(fromDate, "MMMM d")} - ${format(toDate, "MMMM d, yyyy")}`;
-  }*/
+    periodLabel = `${format(fromDate, "MMMM d")} - ${format(toDate, "MMMM d, yyyy")}`;*/
+  //}
 
   const insights = await generateInsightsAI({
     totalIncome,
