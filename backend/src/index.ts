@@ -34,7 +34,7 @@ app.use(
   cors({
     origin: [
       Env.FRONTEND_ORIGIN,              // your .env variable (e.g. localhost)
-      "https://money-lens-phi.vercel.app", // your Vercel deployment
+            "https://moneylens-ghj.vercel.app", // your Vercel deployment
     ],
     credentials: true,
   })
