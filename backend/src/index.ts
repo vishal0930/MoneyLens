@@ -21,13 +21,24 @@ const BASE_PATH = Env.BASE_PATH;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Support multiple origins
+const allowedOrigins = Env.FRONTEND_ORIGIN.split(",").map(o => o.trim());
+
 // ✅ FIXED CORS
 app.use(
   cors({
-    origin: [
-      Env.FRONTEND_ORIGIN, // from .env (localhost)
-      // Vercel frontend
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        // Origin is allowed
+        return callback(null, true);
+      } else {
+        console.log("❌ CORS blocked origin:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
