@@ -1,4 +1,3 @@
-
 import "dotenv/config"
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors"
@@ -12,62 +11,54 @@ import userRoutes from "./routes/user.route";
 import { passportAuthenticateJwt } from "./config/passport.config"
 import transactionRoutes from "./routes/transaction.route";
 import scanRoutes from "./routes/scan.routes";
-
 import reportRoutes from "./routes/report.route";
-import { getDateRange } from "./utils/date";
 import analyticsRoutes from "./routes/analytics.route";
-import { processRecurringTransactions } from "./jobs/transaction.job";
-import { processReportJob } from "./jobs/report.job";
-
-
 import { initializeCrons } from "./cron";
 
-const app=express();
-const BASE_PATH=Env.BASE_PATH;
-
+const app = express();
+const BASE_PATH = Env.BASE_PATH;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
+// ✅ FIXED CORS
 app.use(
   cors({
     origin: [
-      Env.FRONTEND_ORIGIN,              // your .env variable (e.g. localhost)
-            "https://moneylens-ghj.vercel.app",
-               "https://moneylens-phi.vercel.app", // your Vercel deployment
+      Env.FRONTEND_ORIGIN, // from .env (localhost)
+      "https://moneylens-phi.vercel.app" // Vercel frontend
     ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 
+
+// -----------------------------------------
+
 app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/user`, passportAuthenticateJwt, userRoutes);
 app.use(`${BASE_PATH}/transaction`, passportAuthenticateJwt, transactionRoutes);
-app.use(`${BASE_PATH}/report`, passportAuthenticateJwt, reportRoutes);app.use("/api", scanRoutes);
+app.use(`${BASE_PATH}/report`, passportAuthenticateJwt, reportRoutes);
+
+app.use("/api", scanRoutes);
 
 app.use(`${BASE_PATH}/analytics`, passportAuthenticateJwt, analyticsRoutes);
+
 app.get(
   "/",
-  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-   
+  asyncHandler(async (req, res) => {
     res.status(HTTPSTATUS.OK).json({
       message: "Hello welcome",
     });
   })
 );
 
-  app.listen(Env.PORT,async() => {
-   await connctDatabase()
-     if (Env.NODE_ENV === "development") {
+app.listen(Env.PORT, async () => {
+  await connctDatabase();
+  if (Env.NODE_ENV === "development") {
     await initializeCrons();
   }
-    console.log(`Server is running on port ${Env.PORT} in ${Env.NODE_ENV} mode`);
-   
-
-    
-      
-  ;
-
-  
-  })
+  console.log(`Server running on port ${Env.PORT} in ${Env.NODE_ENV} mode`);
+});
