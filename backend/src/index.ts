@@ -26,7 +26,7 @@ app.use(
   cors({
     origin: [
       Env.FRONTEND_ORIGIN, // from .env (localhost)
-      "https://moneylens-phi.vercel.app" // Vercel frontend
+      // Vercel frontend
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
