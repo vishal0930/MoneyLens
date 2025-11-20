@@ -71,5 +71,6 @@ app.listen(Env.PORT, async () => {
   if (Env.NODE_ENV === "development") {
     await initializeCrons();
   }
+  console.log(allowedOrigins);
   console.log(`Server running on port ${Env.PORT} in ${Env.NODE_ENV} mode`);
 });
