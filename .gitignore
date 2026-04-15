@@ -29,3 +29,6 @@ _billing.tsx
 .env.local
 .env.production
 .env.development
+backend/uploads/
+client/dist/
+
